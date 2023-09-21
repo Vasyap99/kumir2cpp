@@ -1,6 +1,7 @@
 #include "units/K_fajly.h"
 #include <string>
 #include <iostream>
+#include <stdexcept>
 
 using namespace std;
 
@@ -70,7 +71,9 @@ char K_k1::K_met2(){
     return _result;
 }
 void K_k1::K_met3(char& K_s,int K_e){
+    if(!(string(1,K_s)==string(1,'с'))) throw std::invalid_argument("");
     bool K_l;
+    if(!(true)) throw std::invalid_argument("");
 }
 void K_test1(){
     int K_v;
@@ -117,6 +120,7 @@ string K_test3(){
     return _result;
 }
 void K_fun(string K_s){
+        if(!(K_s!=string(""))) throw std::invalid_argument("");
 }
 void K_fun(float K_v){
 }
@@ -125,6 +129,7 @@ void K_fun(){
 
 int main(){
 ;
+    if(!(true)) throw std::invalid_argument("");
     for(int _temp_i0k1=0;_temp_i0k1<5;_temp_i0k1++){
         cout << string("привет") << endl;
     }
@@ -154,5 +159,6 @@ int main(){
     K_fun(string(1,'о'));
     K_fun(7);
     K_fun();
+    if(!(true)) throw std::invalid_argument("");
     return 0;
 }

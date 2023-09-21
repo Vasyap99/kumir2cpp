@@ -87,10 +87,18 @@ class cpp_code_generator:
         self.iostream_inluded=False
         self.cstdlib_inluded=False
         self.pfile_inluded=False
+        self.stdexcept_inluded=False
 
         self.expr="" 
 
         self.OTSTUP=0
+
+        self.nado=""
+    def nado_b(self):
+        self.nado=""
+    def nado_e(self):
+        self.curr_code[0]+=self.nado
+        self.nado=""
     def split_type_s(self,s):
         if s[-1]=='*':
             return [s[:-1],s[-1]]
@@ -120,6 +128,10 @@ class cpp_code_generator:
         if not self.cstdlib_inluded:
             self.body_prefix+='#include <cstdlib>\r\n'
             self.cstdlib_inluded=True
+    def incl_stdexcept(self):
+        if not self.stdexcept_inluded:
+            self.body_prefix+='#include <stdexcept>\r\n'
+            self.stdexcept_inluded=True
     def incl_pfile(self):
         if not self.pfile_inluded:
             self.body_prefix+='#include "pfile.h"\r\n'
@@ -287,6 +299,11 @@ class cpp_code_generator:
                 self.curr_code[0]=self.curr_code[0][:-2]+' '+"while(true)"                
         except:
             self.ADD("while(true)")
+    def utv1(self):
+        self.incl_stdexcept()
+        self.ADD("    if(!(")
+    def utv2(self):
+        self.curr_code[0]+=')) throw std::invalid_argument("");\r\n'
     def if1(self):
         try:
             if self.curr_code[0][-3] in {';','{','}'}:
@@ -496,6 +513,8 @@ def ERR(s):
 def P(s):
     print s
 
+VYRKONSET={'дано','надо',';','утв','нц','выбор','кон','нач','ввод','вывод','если','то','иначе','все',':'} #множество лексем для определения конца выражения
+
 class sint_anal:
     def __init__(self,LEXEMS,GEN):
         #global LEXEMS,GEN
@@ -680,7 +699,7 @@ class sint_anal:
         SGN=''
         while True:
             TYP=self.rule_expr1()
-            if self.LEX[self.i][0] in{':=','-=','+=','*=','/='} and not(  (self.LEX[self.i][0] in{'then','do',';','end','of','to','downto'}) and (self.LEX[self.i][1] in {'swrd','sign'})  ):
+            if self.LEX[self.i][0] in{':=','-=','+=','*=','/='} and not(  (self.LEX[self.i][0] in VYRKONSET) and (self.LEX[self.i][1] in {'swrd','sign'})  ):
                 self.rule_ident() #пропускаем знак
                 SGN=self.IDENT
                 self.GEN.expr2(self.IDENT,self.IDENT_TYPE)
@@ -700,7 +719,7 @@ class sint_anal:
                 TYP=self.calc_type_bin(TYP,TYP1,'или')
             else:
                 TYP=TYP1[:]
-            if self.LEX[self.i][0] in{'или'} and not(  (self.LEX[self.i][0] in{'then','do',';','end','of','to','downto',',',']'}) and (self.LEX[self.i][1] in {'swrd','sign'})  ):
+            if self.LEX[self.i][0] in{'или'} and not(  (self.LEX[self.i][0] in (VYRKONSET | {',',']'}) ) and (self.LEX[self.i][1] in {'swrd','sign'})  ):
                 self.rule_ident() #пропускаем знак
                 OP=self.IDENT[:]
                 if TYP[3][0]=='цел':
@@ -722,7 +741,7 @@ class sint_anal:
                 TYP=self.calc_type_bin(TYP,TYP1,OP)
             else:
                 TYP=TYP1[:]
-            if self.LEX[self.i][0] in{'и','либо'} and not(  (self.LEX[self.i][0] in{'then','do',';','end','of','to','downto',',',']'}) and (self.LEX[self.i][1] in {'swrd','sign'})  ):
+            if self.LEX[self.i][0] in{'и','либо'} and not(  (self.LEX[self.i][0] in (VYRKONSET | {',',']'}) ) and (self.LEX[self.i][1] in {'swrd','sign'})  ):
                 self.rule_ident() #пропускаем знак
                 OP=self.IDENT[:]
                 if TYP[3][0]=='цел':
@@ -756,6 +775,7 @@ class sint_anal:
 
 
     def rule_expr2(self):#2я ступень выражения - бинарные логические операции( > < >= <= = <>)
+        perf=False
         P(">rule_expr2")        
         OP=''
         TYP=['v','',1,[''],[]]
@@ -766,9 +786,10 @@ class sint_anal:
                 TYP=self.calc_type_bin(TYP,TYP1,OP)
             else:
                 TYP=TYP1[:]
-            if self.LEX[self.i][0] in{'>','<','>=','<=','=','<>'} and not(  (self.LEX[self.i][0] in{'then','do',';','end','of','to','downto'}) and (self.LEX[self.i][1] in {'swrd','sign'})  ):
-                if TYP[3][0]=='сим': #преобразование симв.в стр. c-> string(c)
-                    self.GEN.expr=self.GEN.expr[:N1]+'string(1,'+self.GEN.expr[N1:]+')'
+            if ((TYP1[3][0]=='сим') and ((self.LEX[self.i][0] in{'>','<','>=','<=','=','<>'}) or perf)): #преобразование симв.в стр. c-> string(c)
+                self.GEN.expr=self.GEN.expr[:N1]+'string(1,'+self.GEN.expr[N1:]+')'
+                perf=True
+            if self.LEX[self.i][0] in{'>','<','>=','<=','=','<>'} and not(  (self.LEX[self.i][0] in VYRKONSET) and (self.LEX[self.i][1] in {'swrd','sign'})  ):
                 self.rule_ident() #пропускаем знак
                 OP=self.IDENT[:]
                 self.GEN.expr2(self.IDENT,self.IDENT_TYPE)
@@ -778,6 +799,7 @@ class sint_anal:
         return TYP 
 
     def rule_expr3(self):#3я ступень выражения - бинарные операции( + -)
+        perf=False
         P(">rule_expr3")      
         OP=''  
         TYP=['v','',1,[''],[]]
@@ -788,9 +810,10 @@ class sint_anal:
                 TYP=self.calc_type_bin(TYP,TYP1,OP)
             else:
                 TYP=TYP1[:]
-            if self.LEX[self.i][0] in{'+','-'} and not(  (self.LEX[self.i][0] in{'then','do',';','end','of','to','downto'}) and (self.LEX[self.i][1] in {'swrd','sign'})  ):
-                if self.LEX[self.i][0]=='+' and TYP[3][0]=='сим': #преобразование симв.в стр. c-> string(c)
+            if self.LEX[self.i][0] in{'+','-'} and not(  (self.LEX[self.i][0] in VYRKONSET) and (self.LEX[self.i][1] in {'swrd','sign'})  ):
+                if self.LEX[self.i][0]=='+' and (TYP[3][0]=='сим'): #преобразование симв.в стр. c-> string(c)
                     self.GEN.expr=self.GEN.expr[:N1]+'string(1,'+self.GEN.expr[N1:]+')'
+                    perf=True
                 self.rule_ident() #пропускаем знак
                 OP=self.IDENT[:]
                 self.GEN.expr2(self.IDENT,self.IDENT_TYPE)
@@ -809,7 +832,7 @@ class sint_anal:
                 TYP=self.calc_type_bin(TYP,TYP1,OP)
             else:
                 TYP=TYP1[:]
-            if self.LEX[self.i][0] in{'*','/','<<','>>','div','mod'} and not(  (self.LEX[self.i][0] in{'then','do',';','end','of','to','downto'}) and (self.LEX[self.i][1] in {'swrd','sign'})  ):
+            if self.LEX[self.i][0] in{'*','/','<<','>>','div','mod'} and not(  (self.LEX[self.i][0] in VYRKONSET) and (self.LEX[self.i][1] in {'swrd','sign'})  ):
                 self.rule_ident() #пропускаем знак
                 OP=self.IDENT[:]
                 self.GEN.expr2(self.IDENT,self.IDENT_TYPE)
@@ -868,7 +891,7 @@ class sint_anal:
         if self.LEX[self.i][0] in{'['} and TYP[3][0]=='array':
             dt=self.get_array_startIndexes(TYP[3])
             i=0
-            while self.LEX[self.i][0] in{'['} and not(  (self.LEX[self.i][0] in{'then','do',';','end','of','to','downto'}) and (self.LEX[self.i][1] in {'swrd','sign'})  ):
+            while self.LEX[self.i][0] in{'['} and not(  (self.LEX[self.i][0] in VYRKONSET) and (self.LEX[self.i][1] in {'swrd','sign'})  ):
                 self.rule_sym('[')
                 self.GEN.expr2('[','sign')
                 self.rule_expr1()
@@ -1017,7 +1040,7 @@ class sint_anal:
     def rule_expr6(self,TYP):#6я ступень выражения - операция( .(обращение к полю объекта) )
         P(">rule_expr6")        
         if True:
-            while self.LEX[self.i][0] in{'.'} and not(  (self.LEX[self.i][0] in{'then','do',';','end','of','to','downto'}) and (self.LEX[self.i][1] in {'swrd','sign'})  ):
+            while self.LEX[self.i][0] in{'.'} and not(  (self.LEX[self.i][0] in VYRKONSET) and (self.LEX[self.i][1] in {'swrd','sign'})  ):
                 TYP=self.resolve_type(TYP)[:]
                 TYP=self.create_record_decl_list(TYP)
                 TYP[0]='v'  #считаем, что значение - переменная(константа)
@@ -1545,6 +1568,29 @@ class sint_anal:
             self.GEN.ADD('}')
 
 
+    def rule_utv(self):
+        P(">rule_utv")
+        self.GEN.utv1()
+        self.rule_sym('утв')  
+        self.rule_expr()
+        self.GEN.utv2()
+
+    def rule_dano(self):  #производит код аналогичный УТВ
+        P(">rule_dano")
+        self.GEN.utv1()
+        self.rule_sym('дано')  
+        self.rule_expr()
+        self.GEN.utv2()
+    def rule_nado(self):
+        P(">rule_nado")
+        N=len(self.GEN.curr_code[0])
+        self.GEN.utv1()
+        self.rule_sym('надо')  
+        self.rule_expr()
+        self.GEN.utv2()
+        self.GEN.nado=self.GEN.curr_code[0][N:]
+        self.GEN.curr_code[0]=self.GEN.curr_code[0][:N]
+
     def rule_if(self):
         P(">rule_if")
         self.GEN.if1()
@@ -1643,6 +1689,8 @@ class sint_anal:
             self.rule_sym('удалить')
             self.GEN.ADD('delete ')
             self.rule_expr()
+        elif self.LEX[self.i][0]=='утв':
+            self.rule_utv()
         elif self.LEX[self.i][0] in {';','все','кц'}:
             self.rule_empty_operator()
         else: 		#это выражение либо определение переменной
@@ -1687,9 +1735,16 @@ class sint_anal:
         self.GEN.block_end()
 
     def rule_gblock(self):   #блок алг-нач-кон глобальной программы
+        self.GEN.nado_b()
         P("BLOCK")
         self.rule_sym('алг')
         self.semicolons()
+        if self.LEX[self.i][0]=='дано':   #необязательное
+            self.rule_dano()
+            self.semicolons()  
+        if self.LEX[self.i][0]=='надо':   #необязательное
+            self.rule_nado()
+            self.semicolons()  
         if self.LEX[self.i][0]=='нач':
             self.rule_sym('нач')     #нач необязательное, считаем, что вся ф-ция -- код
         N=len(self.decls)        #расширяем массив определений для переменных блока
@@ -1701,6 +1756,7 @@ class sint_anal:
             self.semicolons()    
         self.rule_sym('кон')
         self.semicolons() 
+        self.GEN.nado_e()
         self.GEN.gblock_end()
         self.decls=self.decls[:N]      #возвращаем в исходное состояние массив определений
 
@@ -1841,6 +1897,7 @@ class sint_anal:
 
 
     def rule_function(self):
+        self.GEN.nado_b()
         P("FUNCTION")
         N=len(self.decls)  #запоминаем текущую длину массива определений(чтобы вернуть в исходное состояние)
         self.LEVEL+=1
@@ -1901,6 +1958,12 @@ class sint_anal:
         self.decls[-1].append(['v','знач','1',CHN[0],None ]) #добавляем переменную 'знач' для значения ф-ции (в любом случае - и для метода и для обычной ф-ции)
 
         self.semicolons()
+        if self.LEX[self.i][0]=='дано':   #необязательное
+            self.rule_dano()
+            self.semicolons()  
+        if self.LEX[self.i][0]=='надо':   #необязательное
+            self.rule_nado()
+            self.semicolons()  
         if self.LEX[self.i][0]=='нач':   #нач необязательное
             self.rule_sym('нач')
         #self.GEN.block_begin()
@@ -1909,6 +1972,7 @@ class sint_anal:
             self.rule_operator()
             self.semicolons()  
         self.rule_sym('кон')
+        self.GEN.nado_e()
         self.semicolons()
         self.GEN.OTSTUP=0   #добавить отступ
         #self.GEN.block_end()
@@ -2035,7 +2099,7 @@ def minuses_to_numbers():
             LEXEMS[i:i+1]=[]
         i+=1
 
-SPECWORDS={'ввод','вывод','нс','вирт','ки','нц','кц','нач','кон','алг','цел','вещ','сим','лит','исп','кон_исп','если','то','иначе','все','выбор','при','раз','и','или','либо','не','да','нет','лог','для','таб','арг','рез','аргрез','от','до','пока','выход','использовать','нов','удалить','это'}  #,'откр','закр','защ'
+SPECWORDS={'ввод','вывод','нс','вирт','ки','нц','кц','нач','кон','алг','цел','вещ','сим','лит','исп','кон_исп','если','то','иначе','все','выбор','при','раз','и','или','либо','не','да','нет','лог','для','таб','арг','рез','аргрез','от','до','пока','выход','использовать','нов','удалить','это','утв','дано','надо'}  #,'откр','закр','защ'
 LEXEMS=[]
 
 def load_replaces():   #для замен идентификаторов -- функция загружает замены из файла с расширением .replaces
